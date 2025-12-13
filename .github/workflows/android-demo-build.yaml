@@ -74,11 +74,13 @@ jobs:
         run: |
           cd ${{ github.workspace }}/..
           
+          # GitHub Actions already checks out to /home/runner/work/cobalt/cobalt
+          # This matches gclient's expected structure: .gclient in parent, code in 'cobalt' subdir
           cat > .gclient << 'EOF'
           solutions = [
             {
               "name": "cobalt",
-              "url": "https://github.com/${{ github.repository }}",
+              "url": "https://github.com/adRise/cobalt",
               "deps_file": "DEPS",
               "managed": False,
               "custom_deps": {},
@@ -88,8 +90,10 @@ jobs:
           target_os=['android']
           EOF
           
-          # Move checkout to 'cobalt' directory
-          mv ${{ github.workspace }} cobalt
+          echo "=== Directory structure ==="
+          ls -la
+          echo "=== .gclient content ==="
+          cat .gclient
           
       - name: Run gclient sync
         run: |
@@ -99,18 +103,18 @@ jobs:
           
       - name: Run hooks
         run: |
-          cd ${{ github.workspace }}/../cobalt
+          cd ${{ github.workspace }}/..
           gclient runhooks
         timeout-minutes: 30
           
       - name: Run GN
         run: |
-          cd ${{ github.workspace }}/../cobalt
+          cd ${{ github.workspace }}
           cobalt/build/gn.py -p android-arm64 -C ${{ inputs.build_config }}
           
       - name: Build Java Libraries Only
         run: |
-          cd ${{ github.workspace }}/../cobalt
+          cd ${{ github.workspace }}
           # Build only the Java library targets
           autoninja -C out/android-arm64_${{ inputs.build_config }} \
             //cobalt/shell/android:cobalt_shell_java \
@@ -119,7 +123,7 @@ jobs:
           
       - name: Collect Java JARs
         run: |
-          cd ${{ github.workspace }}/../cobalt
+          cd ${{ github.workspace }}
           mkdir -p java-deps
           
           echo "=== Finding all .javac.jar files ==="
@@ -145,13 +149,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cobalt-java-deps-${{ inputs.build_config }}
-          path: ${{ github.workspace }}/../cobalt/java-deps/
+          path: ${{ github.workspace }}/java-deps/
           retention-days: 30
           
       - name: Archive JAR List
         uses: actions/upload-artifact@v4
         with:
           name: jar-list-${{ inputs.build_config }}
-          path: ${{ github.workspace }}/../cobalt/jar-list.txt
+          path: ${{ github.workspace }}/jar-list.txt
           retention-days: 30
 
