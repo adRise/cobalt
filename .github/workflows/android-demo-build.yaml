@@ -1,0 +1,157 @@
+name: Build Java Dependencies
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_config:
+        description: 'Build configuration'
+        required: true
+        default: 'qa'
+        type: choice
+        options:
+          - devel
+          - qa
+
+concurrency:
+  group: java-deps-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-java-deps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    
+    env:
+      DEPOT_TOOLS_UPDATE: 0
+      DEPOT_TOOLS_REPORT_BUILD: 0
+      DEPOT_TOOLS_COLLECT_METRICS: 0
+      DEPOT_TOOLS_METRICS: 0
+      
+    steps:
+      - name: Free Disk Space
+        run: |
+          echo "=== Before cleanup ==="
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/share/boost
+          sudo apt-get clean
+          echo "=== After cleanup ==="
+          df -h
+          
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            git \
+            ninja-build \
+            pkg-config \
+            python3 \
+            unzip \
+            zip \
+            openjdk-11-jdk
+            
+      - name: Setup depot_tools
+        run: |
+          git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git /tmp/depot_tools
+          echo "/tmp/depot_tools" >> $GITHUB_PATH
+          
+      - name: Configure gclient
+        run: |
+          cd ${{ github.workspace }}/..
+          
+          cat > .gclient << 'EOF'
+          solutions = [
+            {
+              "name": "cobalt",
+              "url": "https://github.com/${{ github.repository }}",
+              "deps_file": "DEPS",
+              "managed": False,
+              "custom_deps": {},
+              "custom_vars": {},
+            },
+          ]
+          target_os=['android']
+          EOF
+          
+          # Move checkout to 'cobalt' directory
+          mv ${{ github.workspace }} cobalt
+          
+      - name: Run gclient sync
+        run: |
+          cd ${{ github.workspace }}/..
+          gclient sync --verbose --shallow --no-history --nohooks -j4
+        timeout-minutes: 60
+          
+      - name: Run hooks
+        run: |
+          cd ${{ github.workspace }}/../cobalt
+          gclient runhooks
+        timeout-minutes: 30
+          
+      - name: Run GN
+        run: |
+          cd ${{ github.workspace }}/../cobalt
+          cobalt/build/gn.py -p android-arm64 -C ${{ inputs.build_config }}
+          
+      - name: Build Java Libraries Only
+        run: |
+          cd ${{ github.workspace }}/../cobalt
+          # Build only the Java library targets
+          autoninja -C out/android-arm64_${{ inputs.build_config }} \
+            //cobalt/shell/android:cobalt_shell_java \
+            //cobalt/android:cobalt_java
+        timeout-minutes: 120
+          
+      - name: Collect Java JARs
+        run: |
+          cd ${{ github.workspace }}/../cobalt
+          mkdir -p java-deps
+          
+          echo "=== Finding all .javac.jar files ==="
+          find out/android-arm64_${{ inputs.build_config }}/obj -name "*.javac.jar" | tee jar-list.txt
+          
+          echo ""
+          echo "=== Copying JARs ==="
+          while read jar; do
+            if [ -f "$jar" ]; then
+              # Create subdirectory structure
+              rel_path=$(dirname "$jar" | sed "s|out/android-arm64_${{ inputs.build_config }}/obj/||")
+              mkdir -p "java-deps/$rel_path"
+              cp "$jar" "java-deps/$rel_path/"
+              echo "Copied: $jar"
+            fi
+          done < jar-list.txt
+          
+          echo ""
+          echo "=== Collected JARs ==="
+          find java-deps -name "*.jar" -type f
+          
+      - name: Archive Java Dependencies
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobalt-java-deps-${{ inputs.build_config }}
+          path: ${{ github.workspace }}/../cobalt/java-deps/
+          retention-days: 30
+          
+      - name: Archive JAR List
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-list-${{ inputs.build_config }}
+          path: ${{ github.workspace }}/../cobalt/jar-list.txt
+          retention-days: 30
+
