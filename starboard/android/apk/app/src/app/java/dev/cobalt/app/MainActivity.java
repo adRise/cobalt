@@ -56,20 +56,27 @@ public class MainActivity extends CobaltActivity {
     // Check if URL was already selected in a previous instance
     if (savedInstanceState != null) {
       urlSelected = savedInstanceState.getBoolean(SELECTED_URL_KEY, false);
+      Log.i("MainActivity", "onCreate: urlSelected from savedInstanceState = " + urlSelected);
     }
     
     // Check intent for URL (in case of deep link)
     Intent intent = getIntent();
     if (intent != null && intent.getData() != null) {
       urlSelected = true;
+      Log.i("MainActivity", "onCreate: urlSelected from intent = true, URL = " + intent.getData().toString());
     }
+    
+    Log.i("MainActivity", "onCreate: urlSelected = " + urlSelected + " before super.onCreate()");
 
     // Always call super.onCreate() to initialize the activity properly
     super.onCreate(savedInstanceState);
     
     // Show button selection screen if URL not already selected
     if (!urlSelected) {
+      Log.i("MainActivity", "onCreate: Showing button selection screen");
       showUrlSelectionButtons();
+    } else {
+      Log.i("MainActivity", "onCreate: URL already selected, skipping button screen");
     }
   }
 
@@ -132,19 +139,44 @@ public class MainActivity extends CobaltActivity {
 
   @Override
   protected String[] getArgs() {
+    Log.i("MainActivity", "getArgs() called, urlSelected = " + urlSelected);
+    
     // If URL is already selected (from intent or saved state), use parent's getArgs()
-    // Otherwise, override to exclude the URL arg so it doesn't start loading
+    // Otherwise, override to use about:blank as placeholder URL
     if (urlSelected) {
-      return super.getArgs();
+      String[] args = super.getArgs();
+      Log.i("MainActivity", "getArgs() returning parent args (URL selected), count = " + args.length);
+      return args;
     }
     
-    // Get parent args but remove the URL argument to prevent auto-loading
+    // Get parent args but replace the URL argument with about:blank to prevent auto-loading
     String[] parentArgs = super.getArgs();
     List<String> args = new ArrayList<>(Arrays.asList(parentArgs));
     
-    // Remove the --url= argument if present
+    Log.i("MainActivity", "getArgs() parent args count = " + parentArgs.length);
+    for (String arg : parentArgs) {
+      Log.i("MainActivity", "getArgs() parent arg: " + arg);
+    }
+    
+    // Replace the --url= argument with about:blank to prevent auto-loading
     String urlArgPrefix = "--url=";
-    args.removeIf(arg -> arg.startsWith(urlArgPrefix));
+    boolean foundUrlArg = false;
+    for (int i = 0; i < args.size(); i++) {
+      if (args.get(i).startsWith(urlArgPrefix)) {
+        args.set(i, urlArgPrefix + "about:blank");
+        foundUrlArg = true;
+        Log.i("MainActivity", "getArgs() replaced URL arg with about:blank");
+        break;
+      }
+    }
+    
+    // If no URL arg was found, add one with about:blank
+    if (!foundUrlArg) {
+      args.add(urlArgPrefix + "about:blank");
+      Log.i("MainActivity", "getArgs() added about:blank URL arg");
+    }
+    
+    Log.i("MainActivity", "getArgs() returning modified args, count = " + args.size());
     
     return args.toArray(new String[0]);
   }
