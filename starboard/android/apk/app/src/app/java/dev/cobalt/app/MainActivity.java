@@ -15,75 +15,36 @@
 package dev.cobalt.app;
 
 import android.app.Activity;
-import android.app.Service;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
-import dev.cobalt.coat.ArtworkDownloaderDefault;
-import dev.cobalt.coat.CobaltActivity;
-import dev.cobalt.coat.CobaltService;
 import dev.cobalt.coat.R;
-import dev.cobalt.coat.StarboardBridge;
-import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
-import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Main Activity for the "Cobalt on Android TV" app.
  *
- * <p>The real work is done in the abstract base class. This class is really just some factory
- * methods to "inject" things that can be customized.
+ * <p>This activity only displays URL selection buttons and doesn't load any Cobalt content.
+ * The actual URL loading is handled by TestCobaltActivity.
  */
-public class MainActivity extends CobaltActivity {
+public class MainActivity extends Activity {
 
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
   private static final String TUBITV_URL = "https://ott-firetv-hyb.tubitv.com/";
-  private static final String SELECTED_URL_KEY = "selected_url";
   
   private FrameLayout buttonSelectionLayout;
-  private boolean urlSelected = false;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     Log.i("MainActivity", "MainActivity.onCreate() - Cobalt test");
     
-    // Check if URL was already selected in a previous instance
-    if (savedInstanceState != null) {
-      urlSelected = savedInstanceState.getBoolean(SELECTED_URL_KEY, false);
-      Log.i("MainActivity", "onCreate: urlSelected from savedInstanceState = " + urlSelected);
-    }
-    
-    // Check intent for URL (in case of deep link)
-    Intent intent = getIntent();
-    if (intent != null && intent.getData() != null) {
-      urlSelected = true;
-      Log.i("MainActivity", "onCreate: urlSelected from intent = true, URL = " + intent.getData().toString());
-    }
-    
-    Log.i("MainActivity", "onCreate: urlSelected = " + urlSelected + " before super.onCreate()");
-
-    // Always call super.onCreate() to initialize the activity properly
     super.onCreate(savedInstanceState);
     
-    // Show button selection screen if URL not already selected
-    if (!urlSelected) {
-      Log.i("MainActivity", "onCreate: Showing button selection screen");
-      showUrlSelectionButtons();
-    } else {
-      Log.i("MainActivity", "onCreate: URL already selected, skipping button screen");
-    }
-  }
-
-  @Override
-  protected void onSaveInstanceState(Bundle outState) {
-    super.onSaveInstanceState(outState);
-    outState.putBoolean(SELECTED_URL_KEY, urlSelected);
+    // Show button selection screen
+    showUrlSelectionButtons();
   }
 
   private void showUrlSelectionButtons() {
@@ -108,16 +69,12 @@ public class MainActivity extends CobaltActivity {
       }
     });
 
-    // Add the button layout on top of existing content using addContentView
-    // This ensures it appears above the video surface view
-    addContentView(buttonSelectionLayout, 
-        new android.view.ViewGroup.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+    // Set the button layout as the main content view
+    setContentView(buttonSelectionLayout);
   }
 
   private void loadUrl(String url) {
-    urlSelected = true;
+    Log.i("MainActivity", "loadUrl() called with URL: " + url);
     
     // Hide the button selection layout
     if (buttonSelectionLayout != null) {
@@ -128,87 +85,12 @@ public class MainActivity extends CobaltActivity {
       buttonSelectionLayout = null;
     }
 
-    // Restart the activity with the selected URL in the intent
-    // This ensures the URL is properly loaded via startDeepLink
-    Intent intent = new Intent(this, MainActivity.class);
+    // Start TestCobaltActivity with the selected URL in the intent
+    Intent intent = new Intent(this, TestCobaltActivity.class);
     intent.setData(Uri.parse(url));
     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
     startActivity(intent);
     finish();
   }
 
-  @Override
-  protected String[] getArgs() {
-    Log.i("MainActivity", "getArgs() called, urlSelected = " + urlSelected);
-    
-    // If URL is already selected (from intent or saved state), use parent's getArgs()
-    if (urlSelected) {
-      String[] args = super.getArgs();
-      Log.i("MainActivity", "getArgs() returning parent args (URL selected), count = " + args.length);
-      return args;
-    }
-    
-    // Get parent args but completely remove the URL argument to prevent auto-loading
-    // This way, native code won't have a URL to load
-    String[] parentArgs = super.getArgs();
-    List<String> args = new ArrayList<>(Arrays.asList(parentArgs));
-    
-    Log.i("MainActivity", "getArgs() parent args count = " + parentArgs.length);
-    for (String arg : parentArgs) {
-      Log.i("MainActivity", "getArgs() parent arg: " + arg);
-    }
-    
-    // Remove the --url= argument completely
-    String urlArgPrefix = "--url=";
-    int beforeSize = args.size();
-    args.removeIf(arg -> arg.startsWith(urlArgPrefix));
-    int afterSize = args.size();
-    
-    Log.i("MainActivity", "getArgs() removed URL arg, before=" + beforeSize + ", after=" + afterSize);
-    Log.i("MainActivity", "getArgs() returning modified args without URL, count = " + args.size());
-    
-    return args.toArray(new String[0]);
-  }
-
-  @Override
-  protected String getIntentUrlAsString(Intent intent) {
-    // Override to return null when URL is not selected yet
-    // This prevents startDeepLink from being set, so native code won't load anything
-    if (!urlSelected) {
-      Log.i("MainActivity", "getIntentUrlAsString() returning null (URL not selected)");
-      return null;
-    }
-    
-    // If URL is selected, use parent's implementation
-    String url = super.getIntentUrlAsString(intent);
-    Log.i("MainActivity", "getIntentUrlAsString() returning: " + url);
-    return url;
-  }
-
-  @Override
-  protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
-    Holder<Activity> activityHolder = new Holder<>();
-    Holder<Service> serviceHolder = new Holder<>();
-    Runnable stopRequester =
-        new Runnable() {
-          @Override
-          public void run() {
-            getStarboardBridge().requestStop(0);
-          }
-        };
-    StarboardBridge bridge =
-        new StarboardBridge(
-            getApplicationContext(),
-            activityHolder,
-            serviceHolder,
-            new ArtworkDownloaderDefault(),
-            args,
-            startDeepLink);
-
-    CobaltService.Factory clientLogInfoFactory =
-        new ClientLogInfoModule().provideFactory(getApplicationContext());
-    bridge.registerCobaltService(clientLogInfoFactory);
-
-    return bridge;
-  }
 }
