@@ -104,8 +104,10 @@ public class MainActivity extends Activity {
       // Start TestCobaltActivity with the selected URL in the intent
       Intent intent = new Intent(this, TestCobaltActivity.class);
       intent.setData(Uri.parse(url));
-      Log.i("MainActivity", "Starting TestCobaltActivity with intent: " + intent.toString());
+      Log.i("MainActivity", "Starting TestCobaltActivity with URL: " + url);
+      Log.i("MainActivity", "Intent data: " + intent.getData());
       startActivity(intent);
+      // Don't finish MainActivity so user can return to it with back button
     } catch (Exception e) {
       Log.e("MainActivity", "Error starting TestCobaltActivity", e);
     }

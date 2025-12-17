@@ -35,6 +35,10 @@ public class TestCobaltActivity extends CobaltActivity {
   @Override
   protected void onCreate(android.os.Bundle savedInstanceState) {
     Log.i("TestCobaltActivity", "TestCobaltActivity.onCreate()");
+    Intent intent = getIntent();
+    if (intent != null && intent.getData() != null) {
+      Log.i("TestCobaltActivity", "onCreate() - Intent URL: " + intent.getData().toString());
+    }
     super.onCreate(savedInstanceState);
   }
 
@@ -44,12 +48,14 @@ public class TestCobaltActivity extends CobaltActivity {
     Intent intent = getIntent();
     String urlFromIntent = getIntentUrlAsString(intent);
     
+    Log.i("TestCobaltActivity", "getArgs() called, urlFromIntent: " + urlFromIntent);
+    
     // Get parent args (which includes metadata from manifest)
     String[] parentArgs = super.getArgs();
     java.util.List<String> args = new java.util.ArrayList<>(java.util.Arrays.asList(parentArgs));
     
     // If we have a URL from intent, replace the --url= argument with it
-    if (urlFromIntent != null) {
+    if (urlFromIntent != null && !urlFromIntent.isEmpty()) {
       String urlArgPrefix = "--url=";
       boolean found = false;
       for (int i = 0; i < args.size(); i++) {
@@ -66,6 +72,12 @@ public class TestCobaltActivity extends CobaltActivity {
       }
     } else {
       Log.i("TestCobaltActivity", "getArgs() no URL in intent, using manifest URL");
+    }
+    
+    // Log all args for debugging
+    Log.i("TestCobaltActivity", "getArgs() returning args count: " + args.size());
+    for (String arg : args) {
+      Log.i("TestCobaltActivity", "getArgs() arg: " + arg);
     }
     
     return args.toArray(new String[0]);
