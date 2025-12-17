@@ -55,9 +55,17 @@ public class MainActivity extends Activity {
     Button buttonYouTube = buttonSelectionLayout.findViewById(R.id.button_youtube);
     Button buttonTubiTV = buttonSelectionLayout.findViewById(R.id.button_tubitv);
 
+    if (buttonYouTube == null || buttonTubiTV == null) {
+      Log.e("MainActivity", "Buttons not found in layout!");
+      return;
+    }
+
+    Log.i("MainActivity", "Setting up button listeners");
+
     buttonYouTube.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View v) {
+        Log.i("MainActivity", "YouTube button clicked");
         loadUrl(YOUTUBE_URL);
       }
     });
@@ -65,32 +73,42 @@ public class MainActivity extends Activity {
     buttonTubiTV.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View v) {
+        Log.i("MainActivity", "TubiTV button clicked");
         loadUrl(TUBITV_URL);
       }
     });
 
+    // Ensure buttons are clickable
+    buttonYouTube.setClickable(true);
+    buttonTubiTV.setClickable(true);
+
     // Set the button layout as the main content view
     setContentView(buttonSelectionLayout);
+    
+    Log.i("MainActivity", "Button layout set, buttons should be clickable now");
   }
 
   private void loadUrl(String url) {
     Log.i("MainActivity", "loadUrl() called with URL: " + url);
     
-    // Hide the button selection layout
-    if (buttonSelectionLayout != null) {
-      android.view.ViewGroup parent = (android.view.ViewGroup) buttonSelectionLayout.getParent();
-      if (parent != null) {
-        parent.removeView(buttonSelectionLayout);
+    try {
+      // Hide the button selection layout
+      if (buttonSelectionLayout != null) {
+        android.view.ViewGroup parent = (android.view.ViewGroup) buttonSelectionLayout.getParent();
+        if (parent != null) {
+          parent.removeView(buttonSelectionLayout);
+        }
+        buttonSelectionLayout = null;
       }
-      buttonSelectionLayout = null;
-    }
 
-    // Start TestCobaltActivity with the selected URL in the intent
-    Intent intent = new Intent(this, TestCobaltActivity.class);
-    intent.setData(Uri.parse(url));
-    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-    startActivity(intent);
-    finish();
+      // Start TestCobaltActivity with the selected URL in the intent
+      Intent intent = new Intent(this, TestCobaltActivity.class);
+      intent.setData(Uri.parse(url));
+      Log.i("MainActivity", "Starting TestCobaltActivity with intent: " + intent.toString());
+      startActivity(intent);
+    } catch (Exception e) {
+      Log.e("MainActivity", "Error starting TestCobaltActivity", e);
+    }
   }
 
 }

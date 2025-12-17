@@ -19,8 +19,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000"
-    android:focusable="true"
-    android:focusableInTouchMode="true">
+    android:clickable="false"
+    android:focusable="false">
 
   <LinearLayout
       android:layout_width="wrap_content"
@@ -41,22 +41,26 @@
 
     <Button
         android:id="@+id/button_youtube"
-        android:layout_width="400dp"
-        android:layout_height="80dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="200dp"
+        android:minHeight="60dp"
         android:text="YouTube TV"
         android:textSize="18sp"
         android:layout_marginBottom="24dp"
-        android:focusable="true"
-        android:focusableInTouchMode="true"/>
+        android:clickable="true"
+        android:focusable="true"/>
 
     <Button
         android:id="@+id/button_tubitv"
-        android:layout_width="400dp"
-        android:layout_height="80dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="200dp"
+        android:minHeight="60dp"
         android:text="Tubi TV"
         android:textSize="18sp"
-        android:focusable="true"
-        android:focusableInTouchMode="true"/>
+        android:clickable="true"
+        android:focusable="true"/>
 
   </LinearLayout>
 
