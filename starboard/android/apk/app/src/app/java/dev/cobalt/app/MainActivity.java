@@ -29,6 +29,7 @@ import dev.cobalt.coat.R;
 import dev.cobalt.coat.StarboardBridge;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.util.Holder;
+import dev.cobalt.util.Log;
 
 /**
  * Main Activity for the "Cobalt on Android TV" app.
@@ -47,6 +48,8 @@ public class MainActivity extends CobaltActivity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    Log.i("MainActivity", "MainActivity.onCreate() - Cobalt test");
+    
     // Check if URL was already selected in a previous instance
     if (savedInstanceState != null) {
       urlSelected = savedInstanceState.getBoolean(SELECTED_URL_KEY, false);
