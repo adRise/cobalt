@@ -142,14 +142,14 @@ public class MainActivity extends CobaltActivity {
     Log.i("MainActivity", "getArgs() called, urlSelected = " + urlSelected);
     
     // If URL is already selected (from intent or saved state), use parent's getArgs()
-    // Otherwise, override to use about:blank as placeholder URL
     if (urlSelected) {
       String[] args = super.getArgs();
       Log.i("MainActivity", "getArgs() returning parent args (URL selected), count = " + args.length);
       return args;
     }
     
-    // Get parent args but replace the URL argument with about:blank to prevent auto-loading
+    // Get parent args but completely remove the URL argument to prevent auto-loading
+    // This way, native code won't have a URL to load
     String[] parentArgs = super.getArgs();
     List<String> args = new ArrayList<>(Arrays.asList(parentArgs));
     
@@ -158,27 +158,31 @@ public class MainActivity extends CobaltActivity {
       Log.i("MainActivity", "getArgs() parent arg: " + arg);
     }
     
-    // Replace the --url= argument with about:blank to prevent auto-loading
+    // Remove the --url= argument completely
     String urlArgPrefix = "--url=";
-    boolean foundUrlArg = false;
-    for (int i = 0; i < args.size(); i++) {
-      if (args.get(i).startsWith(urlArgPrefix)) {
-        args.set(i, urlArgPrefix + "about:blank");
-        foundUrlArg = true;
-        Log.i("MainActivity", "getArgs() replaced URL arg with about:blank");
-        break;
-      }
-    }
+    int beforeSize = args.size();
+    args.removeIf(arg -> arg.startsWith(urlArgPrefix));
+    int afterSize = args.size();
     
-    // If no URL arg was found, add one with about:blank
-    if (!foundUrlArg) {
-      args.add(urlArgPrefix + "about:blank");
-      Log.i("MainActivity", "getArgs() added about:blank URL arg");
-    }
-    
-    Log.i("MainActivity", "getArgs() returning modified args, count = " + args.size());
+    Log.i("MainActivity", "getArgs() removed URL arg, before=" + beforeSize + ", after=" + afterSize);
+    Log.i("MainActivity", "getArgs() returning modified args without URL, count = " + args.size());
     
     return args.toArray(new String[0]);
+  }
+
+  @Override
+  protected String getIntentUrlAsString(Intent intent) {
+    // Override to return null when URL is not selected yet
+    // This prevents startDeepLink from being set, so native code won't load anything
+    if (!urlSelected) {
+      Log.i("MainActivity", "getIntentUrlAsString() returning null (URL not selected)");
+      return null;
+    }
+    
+    // If URL is selected, use parent's implementation
+    String url = super.getIntentUrlAsString(intent);
+    Log.i("MainActivity", "getIntentUrlAsString() returning: " + url);
+    return url;
   }
 
   @Override
