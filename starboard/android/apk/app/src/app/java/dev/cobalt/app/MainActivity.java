@@ -30,6 +30,9 @@ import dev.cobalt.coat.StarboardBridge;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Main Activity for the "Cobalt on Android TV" app.
@@ -118,12 +121,32 @@ public class MainActivity extends CobaltActivity {
       buttonSelectionLayout = null;
     }
 
-    // Use handleDeepLink to navigate to the selected URL
-    // The StarboardBridge should be initialized by now since super.onCreate() was called
-    StarboardBridge bridge = getStarboardBridge();
-    if (bridge != null) {
-      bridge.handleDeepLink(url);
+    // Restart the activity with the selected URL in the intent
+    // This ensures the URL is properly loaded via startDeepLink
+    Intent intent = new Intent(this, MainActivity.class);
+    intent.setData(Uri.parse(url));
+    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+    startActivity(intent);
+    finish();
+  }
+
+  @Override
+  protected String[] getArgs() {
+    // If URL is already selected (from intent or saved state), use parent's getArgs()
+    // Otherwise, override to exclude the URL arg so it doesn't start loading
+    if (urlSelected) {
+      return super.getArgs();
     }
+    
+    // Get parent args but remove the URL argument to prevent auto-loading
+    String[] parentArgs = super.getArgs();
+    List<String> args = new ArrayList<>(Arrays.asList(parentArgs));
+    
+    // Remove the --url= argument if present
+    String urlArgPrefix = "--url=";
+    args.removeIf(arg -> arg.startsWith(urlArgPrefix));
+    
+    return args.toArray(new String[0]);
   }
 
   @Override
