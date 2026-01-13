@@ -16,6 +16,7 @@ package dev.cobalt.app;
 
 import android.app.Application;
 import android.content.Context;
+import dev.cobalt.coat.AppStartTimeHolder;
 import dev.cobalt.coat.StarboardBridge;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
@@ -37,6 +38,13 @@ public class CobaltApplication extends Application implements StarboardBridge.Ho
   @Override
   public StarboardBridge getStarboardBridge() {
     return mStarboardBridge;
+  }
+
+  @Override
+  public void onCreate() {
+    super.onCreate();
+    // Record the application start timestamp for measuring app startup time.
+    AppStartTimeHolder.setAppStartTimeNanos(System.nanoTime());
   }
 
   @Override

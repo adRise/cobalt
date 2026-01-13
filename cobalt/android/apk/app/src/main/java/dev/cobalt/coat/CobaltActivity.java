@@ -63,6 +63,7 @@ import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
+import org.chromium.url.GURL;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
@@ -99,6 +100,10 @@ public abstract class CobaltActivity extends Activity {
   private Boolean mIsKeepScreenOnEnabled = false;
   private CobaltConnectivityDetector mCobaltConnectivityDetector;
   private WebContentsObserver mWebContentsObserver;
+  private boolean mHasReportedFullyDrawn = false;
+  private android.os.Handler mReportFullyDrawnHandler = new android.os.Handler();
+  private Runnable mReportFullyDrawnRunnable = null;
+  private long mLastDidStopLoadingTimeNanos = 0;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -239,6 +244,37 @@ public abstract class CobaltActivity extends Activity {
                         mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(true);
                   }
                 }
+
+                @Override
+                public void didStopLoading(GURL url, boolean isKnownValid) {
+                  Log.i(TAG, "didStopLoading called, url: " + url + ", isKnownValid: " + isKnownValid);
+                  // Only track the first startup, not subsequent page loads.
+                  if (!mHasReportedFullyDrawn) {
+                    // Record the timestamp immediately for accurate measurement.
+                    mLastDidStopLoadingTimeNanos = System.nanoTime();
+                    
+                    // Cancel any previously scheduled report task.
+                    if (mReportFullyDrawnRunnable != null) {
+                      mReportFullyDrawnHandler.removeCallbacks(mReportFullyDrawnRunnable);
+                    }
+                    
+                    // Create a new task to report fully drawn after a delay.
+                    // If no more didStopLoading calls occur within 10 seconds, this is the last one.
+                    mReportFullyDrawnRunnable = new Runnable() {
+                      @Override
+                      public void run() {
+                        // Use the recorded timestamp for accurate time calculation.
+                        long fullyDrawnTimeMs = (mLastDidStopLoadingTimeNanos - mTimeInNanoseconds) / 1_000_000;
+                        Log.i(TAG, "App fully drawn in: " + fullyDrawnTimeMs + " ms (last didStopLoading)");
+                        reportFullyDrawn();
+                        mHasReportedFullyDrawn = true;
+                      }
+                    };
+                    
+                    // Schedule the task to run after 10 seconds.
+                    mReportFullyDrawnHandler.postDelayed(mReportFullyDrawnRunnable, 10000);
+                  }
+                }
               };
           }
         });
@@ -342,8 +378,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
-    // Record the application start timestamp.
-    mTimeInNanoseconds = System.nanoTime();
+    // Get the application start timestamp from AppStartTimeHolder.
+    // This captures the full app startup time, not just Activity creation.
+    mTimeInNanoseconds = AppStartTimeHolder.getAppStartTimeNanos();
 
     // To ensure that volume controls adjust the correct stream, make this call
     // early in the app's lifecycle. This connects the volume controls to

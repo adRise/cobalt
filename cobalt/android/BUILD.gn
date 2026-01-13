@@ -106,6 +106,7 @@ android_library("cobalt_main_java") {
 
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
+    "apk/app/src/main/java/dev/cobalt/coat/AppStartTimeHolder.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
